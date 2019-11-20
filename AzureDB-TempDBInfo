@@ -1,0 +1,53 @@
+/*
+Query to get the Used and the Free Space in Tempdb: 
+(8192 is the size of 1 data page in KB)
+*/
+
+
+
+SELECT SUM(allocated_extent_page_count) AS [used pages]
+	,(SUM(allocated_extent_page_count) * 8192.0 / 1024 / 1024) AS [used space in MB]
+	,SUM(unallocated_extent_page_count) AS [free pages]
+	,(SUM(unallocated_extent_page_count) * 8192.0 / 1024 / 1024) AS [free space in MB]
+	,(SUM(unallocated_extent_page_count) * 8192.0 / 1024) AS [free space in KB]
+	,(SUM(unallocated_extent_page_count) * 8192.0 / 1024 / 1024) AS [free space in MB]
+FROM tempdb.sys.dm_db_file_space_usage;
+
+
+
+/*
+Use this one to get free space in TEMPDB
+*/
+
+SELECT counter_name
+	,cntr_value AS Free_Space_in_KB
+	,cntr_value / 1024.0 AS Free_Space_in_MB
+FROM sys.dm_os_performance_counters
+WHERE counter_name LIKE '%free space in temp%'
+
+
+
+/*
+Check current tempdb size and growth parameters
+*/
+
+SELECT name AS FileName
+	,size * 1.0 / 128 AS FileSizeinMB
+	,CASE max_size
+		WHEN 0
+			THEN 'Autogrowth is off.'
+		WHEN - 1
+			THEN 'Autogrowth is on.'
+		ELSE 'Log file grows to a maximum size of 2 TB.'
+		END
+	,growth AS 'GrowthValue'
+	,'GrowthIncrement' = CASE 
+		WHEN growth = 0
+			THEN 'Size is fixed.'
+		WHEN growth > 0
+			AND is_percent_growth = 0
+			THEN 'Growth value is in 8-KB pages.'
+		ELSE 'Growth value is a percentage.'
+		END
+FROM tempdb.sys.database_files;
+GO
